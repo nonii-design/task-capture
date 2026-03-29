@@ -56,17 +56,14 @@ function CopyButton({ text, label, copiedKey, copiedState, onCopy }) {
   );
 }
 
-function TodoistIcon({ size = 20, animate = false }) {
+function TodoistIcon({ size = 20 }) {
   return (
     <img
       src="/todoist-icon.png"
       alt="Todoist"
       width={size}
       height={size}
-      style={{
-        borderRadius: 4,
-        animation: animate ? "float 3s ease-in-out infinite" : "none",
-      }}
+      style={{ borderRadius: size > 30 ? 12 : 4 }}
     />
   );
 }
@@ -195,28 +192,11 @@ export default function Home() {
         }}>
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "center",
-            gap: 12, marginBottom: 16,
+            marginBottom: 12,
           }}>
-            <img
-              src="/nonii-logo.png"
-              alt="nonii.ai"
-              style={{ height: 28, opacity: 0.85 }}
-            />
-          </div>
-          <div style={{
-            display: "inline-flex", alignItems: "center", gap: 10,
-            marginBottom: 8,
-          }}>
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "center",
-              width: 42, height: 42, borderRadius: 12,
-              background: "linear-gradient(135deg, #e44332 0%, #ff7043 100%)",
-              boxShadow: "0 4px 16px rgba(228,67,50,0.25)",
-              animation: "pulse-ring 3s ease-in-out infinite",
-            }}>
-              <span style={{ fontSize: 20 }}>📸</span>
+            <div style={{ animation: "float 3s ease-in-out infinite" }}>
+              <TodoistIcon size={48} />
             </div>
-            <TodoistIcon size={36} animate />
           </div>
           <h1 style={{
             fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em",
@@ -490,19 +470,24 @@ export default function Home() {
           </div>
         )}
 
-        {/* Footer */}
-        <footer style={{
-          textAlign: "center", marginTop: 48,
-          animation: "fadeIn 1s ease 0.5s both",
+        {/* nonii.ai logo – fixed bottom-right */}
+        <div style={{
+          position: "fixed", bottom: 16, right: 20,
+          zIndex: 10,
+          animation: "fadeIn 1.2s ease 0.6s both",
         }}>
           <div style={{
-            display: "flex", alignItems: "center", justifyContent: "center",
-            gap: 6, opacity: 0.4,
-          }}>
-            <span style={{ fontSize: 11, color: "#999" }}>Powered by</span>
-            <img src="/nonii-logo.png" alt="nonii.ai" style={{ height: 14 }} />
+            display: "flex", alignItems: "center", gap: 5,
+            opacity: 0.45,
+            transition: "opacity 0.3s ease",
+          }}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = "0.8"}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = "0.45"}
+          >
+            <span style={{ fontSize: 10, color: "#999", fontWeight: 500 }}>Powered by</span>
+            <img src="/nonii-logo.png" alt="nonii.ai" style={{ height: 13, mixBlendMode: "multiply" }} />
           </div>
-        </footer>
+        </div>
       </div>
     </div>
   );
