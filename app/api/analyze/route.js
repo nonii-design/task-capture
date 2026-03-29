@@ -14,12 +14,32 @@ export async function POST(req) {
   }
 
   try {
-    const { base64, mediaType, partnerName } = await req.json();
+    const { base64, mediaType, partnerName, corrections } = await req.json();
     const today = new Date().toISOString().split("T")[0];
     const linePartnerBlock = formatLinePartnerRulesForPrompt();
     const partnerOverride = partnerName?.trim()
       ? `\n■ 取引先の指定\nユーザーが取引先名を「${partnerName.trim()}」と指定しています。タスク名の納品先にはこの名前を使ってください（LINEヘッダーの自動判定より優先）。\n`
       : "";
+
+    let correctionsBlock = "";
+    if (Array.isArray(corrections) && corrections.length > 0) {
+      const recent = corrections.slice(-15);
+      const examples = recent.map((c, i) => {
+        const lines = [`例${i + 1}:`];
+        if (c.original.title !== c.corrected.title) {
+          lines.push(`  タスク名: 「${c.original.title}」→「${c.corrected.title}」`);
+        }
+        if (c.original.description !== c.corrected.description) {
+          const origDesc = c.original.description || "(空)";
+          const corrDesc = c.corrected.description || "(空)";
+          lines.push(`  説明: 「${origDesc}」→「${corrDesc}」`);
+        }
+        return lines.join("\n");
+      }).join("\n");
+      correctionsBlock = `\n■ ユーザーの過去の修正（学習データ）
+以下はユーザーがAI出力を手動修正した履歴です。同様のケースでは修正後の書き方に合わせてください：
+${examples}\n`;
+    }
 
     const client = new Anthropic({ apiKey, timeout: 55000 });
 
@@ -45,6 +65,7 @@ export async function POST(req) {
 今日は ${today} です。
 ${partnerOverride}
 ${linePartnerBlock}
+${correctionsBlock}
 
 ■ タスク名のルール
 タイトルは以下の順番で記載：

@@ -1,9 +1,25 @@
 "use client";
 import { useState, useRef, useCallback, useEffect } from "react";
 
+const CORRECTIONS_KEY = "task-capture-corrections";
+const MAX_CORRECTIONS = 30;
+
+function loadCorrections() {
+  try {
+    return JSON.parse(localStorage.getItem(CORRECTIONS_KEY) || "[]");
+  } catch { return []; }
+}
+
+function saveCorrections(list) {
+  const trimmed = list.slice(-MAX_CORRECTIONS);
+  localStorage.setItem(CORRECTIONS_KEY, JSON.stringify(trimmed));
+}
+
 async function analyzeScreenshot(base64, mediaType, partnerName) {
   const body = { base64, mediaType };
   if (partnerName?.trim()) body.partnerName = partnerName.trim();
+  const corrections = loadCorrections();
+  if (corrections.length) body.corrections = corrections;
   const res = await fetch("/api/analyze", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -70,15 +86,21 @@ let imageIdCounter = 0;
 export default function Home() {
   const [images, setImages] = useState([]);
   const [resultSections, setResultSections] = useState([]);
+  const [originalTasks, setOriginalTasks] = useState({});
+  const [savedTasks, setSavedTasks] = useState({});
   const [analyzing, setAnalyzing] = useState(false);
   const [copied, setCopied] = useState({});
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState(null);
   const [mounted, setMounted] = useState(false);
   const [partnerName, setPartnerName] = useState("");
+  const [correctionCount, setCorrectionCount] = useState(0);
   const fileRef = useRef();
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+    setCorrectionCount(loadCorrections().length);
+  }, []);
 
   const addFiles = useCallback((files) => {
     const newImages = [];
@@ -148,6 +170,14 @@ export default function Home() {
       }
     }
     setResultSections(sections);
+    const origMap = {};
+    sections.forEach((s, si) => {
+      s.tasks.forEach((t, ti) => {
+        origMap[`${si}-${ti}`] = { title: t.title, description: t.description || "" };
+      });
+    });
+    setOriginalTasks(origMap);
+    setSavedTasks({});
     setAnalyzing(false);
   };
 
@@ -185,6 +215,40 @@ export default function Home() {
     } catch {
       setError("コピーに失敗しました");
     }
+  };
+
+  const isTaskModified = (si, ti) => {
+    const key = `${si}-${ti}`;
+    const orig = originalTasks[key];
+    if (!orig) return false;
+    const current = resultSections[si]?.tasks?.[ti];
+    if (!current) return false;
+    return orig.title !== current.title || orig.description !== (current.description || "");
+  };
+
+  const saveTaskCorrection = (si, ti) => {
+    const key = `${si}-${ti}`;
+    const orig = originalTasks[key];
+    const current = resultSections[si]?.tasks?.[ti];
+    if (!orig || !current) return;
+
+    const correction = {
+      id: Date.now(),
+      timestamp: new Date().toISOString(),
+      original: { title: orig.title, description: orig.description },
+      corrected: { title: current.title, description: current.description || "" },
+    };
+    const list = loadCorrections();
+    list.push(correction);
+    saveCorrections(list);
+    setCorrectionCount(list.slice(-MAX_CORRECTIONS).length);
+    setSavedTasks((p) => ({ ...p, [key]: true }));
+    setTimeout(() => setSavedTasks((p) => ({ ...p, [key]: false })), 2500);
+  };
+
+  const clearCorrections = () => {
+    localStorage.removeItem(CORRECTIONS_KEY);
+    setCorrectionCount(0);
   };
 
   const updateTask = (sectionIdx, taskIdx, field, value) => {
@@ -659,7 +723,7 @@ export default function Home() {
                             <textarea
                               value={task.description}
                               onChange={(e) => updateTask(si, ti, "description", e.target.value)}
-                              rows={Math.max(3, task.description.split("\n").length + 1)}
+                              rows={Math.max(3, (task.description || "").split("\n").length + 1)}
                               style={{
                                 width: "100%", padding: "8px 10px",
                                 borderRadius: 10,
@@ -674,6 +738,39 @@ export default function Home() {
                             />
                           </div>
                         )}
+
+                        {/* Save correction button */}
+                        {isTaskModified(si, ti) && (
+                          <div style={{
+                            marginTop: 12, display: "flex", justifyContent: "flex-end",
+                          }}>
+                            <button
+                              onClick={() => saveTaskCorrection(si, ti)}
+                              disabled={!!savedTasks[`${si}-${ti}`]}
+                              style={{
+                                display: "inline-flex", alignItems: "center", gap: 6,
+                                padding: "7px 16px", borderRadius: 10,
+                                border: "none",
+                                background: savedTasks[`${si}-${ti}`]
+                                  ? "linear-gradient(135deg, #43a047, #66bb6a)"
+                                  : "linear-gradient(135deg, #5c6bc0, #7c4dff)",
+                                color: "#fff",
+                                fontSize: 12, fontWeight: 600, cursor: "pointer",
+                                boxShadow: savedTasks[`${si}-${ti}`]
+                                  ? "0 2px 10px rgba(67,160,71,0.3)"
+                                  : "0 2px 10px rgba(124,77,255,0.3)",
+                                transition: "all 0.3s ease",
+                                animation: "scaleIn 0.25s ease both",
+                              }}
+                            >
+                              {savedTasks[`${si}-${ti}`] ? (
+                                <><span style={{ animation: "check-pop 0.3s ease" }}>✓</span> 保存しました</>
+                              ) : (
+                                <><span>💾</span> 修正を保存（学習）</>
+                              )}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -681,11 +778,37 @@ export default function Home() {
               );
             })}
 
+            {/* Learning data indicator */}
+            {correctionCount > 0 && (
+              <div className="glass" style={{
+                marginTop: 16, padding: "10px 14px", borderRadius: 12,
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                animation: "fadeUp 0.4s ease both",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 13 }}>🧠</span>
+                  <span style={{ fontSize: 11, color: "#888" }}>
+                    学習データ: <strong style={{ color: "#5c6bc0" }}>{correctionCount}件</strong>の修正を記憶中
+                  </span>
+                </div>
+                <button
+                  onClick={clearCorrections}
+                  style={{
+                    background: "none", border: "none",
+                    fontSize: 10, color: "#bbb", cursor: "pointer",
+                    textDecoration: "underline",
+                  }}
+                >
+                  リセット
+                </button>
+              </div>
+            )}
+
             <button
               className="glass"
               onClick={resetForNew}
               style={{
-                marginTop: 16, width: "100%",
+                marginTop: 12, width: "100%",
                 padding: "12px 20px", borderRadius: 12,
                 fontSize: 13, fontWeight: 500,
                 color: "#666", cursor: "pointer",
