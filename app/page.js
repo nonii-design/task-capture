@@ -476,11 +476,29 @@ export default function Home() {
           </div>
         )}
 
+        {/* Hidden file input – always in DOM */}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          multiple
+          style={{
+            position: "absolute", width: 1, height: 1,
+            opacity: 0, overflow: "hidden",
+            pointerEvents: "none",
+          }}
+          onChange={(e) => {
+            if (e.target.files?.length) addFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
+
         {/* Dropzone */}
         {!hasResults && (
-          <div
+          <label
             className="glass-strong"
             style={{
+              display: "block",
               borderRadius: 20,
               padding: images.length ? "16px" : "52px 24px",
               textAlign: "center",
@@ -494,22 +512,13 @@ export default function Home() {
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={onDrop}
-            onClick={() => fileRef.current?.click()}
+            onClick={(e) => {
+              if (images.length > 0) e.preventDefault();
+              else fileRef.current?.click();
+            }}
           >
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              multiple
-              style={{ display: "none" }}
-              onChange={(e) => {
-                if (e.target.files?.length) addFiles(e.target.files);
-                e.target.value = "";
-              }}
-            />
-
             {images.length > 0 ? (
-              <div onClick={(e) => e.stopPropagation()}>
+              <div>
                 <div style={{
                   display: "flex", flexWrap: "wrap", gap: 10,
                   justifyContent: "center",
@@ -531,7 +540,7 @@ export default function Home() {
                         }}
                       />
                       <button
-                        onClick={(e) => { e.stopPropagation(); removeImage(img.id); }}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeImage(img.id); }}
                         style={{
                           position: "absolute", top: 4, right: 4,
                           width: 22, height: 22, borderRadius: "50%",
@@ -550,7 +559,7 @@ export default function Home() {
 
                   {/* Add more button */}
                   <div
-                    onClick={() => fileRef.current?.click()}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); fileRef.current?.click(); }}
                     style={{
                       width: 100, height: 100,
                       borderRadius: 12,
@@ -591,7 +600,7 @@ export default function Home() {
                 </p>
               </div>
             )}
-          </div>
+          </label>
         )}
 
         {/* Partner name input + Analyze button */}
