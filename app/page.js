@@ -1075,31 +1075,7 @@ export default function Home() {
                   );
                 })}
 
-                {/* Learning data indicator */}
-                {correctionCount > 0 && (
-                  <div className="glass" style={{
-                    marginTop: 16, padding: "10px 14px", borderRadius: 12,
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    animation: "fadeUp 0.4s ease both",
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 13 }}>🧠</span>
-                      <span style={{ fontSize: 11, color: "#888" }}>
-                        学習データ: <strong style={{ color: "#5c6bc0" }}>{correctionCount}件</strong>の修正を記憶中
-                      </span>
-                    </div>
-                    <button
-                      onClick={clearCorrections}
-                      style={{
-                        background: "none", border: "none",
-                        fontSize: 10, color: "#bbb", cursor: "pointer",
-                        textDecoration: "underline",
-                      }}
-                    >
-                      リセット
-                    </button>
-                  </div>
-                )}
+                {/* Learning data indicator – hidden, only managed via clearCorrections */}
               </div>
             </div>
           </div>
