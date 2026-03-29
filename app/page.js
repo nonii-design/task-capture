@@ -472,20 +472,21 @@ export default function Home() {
 
         {/* nonii.ai logo – fixed bottom-right */}
         <div style={{
-          position: "fixed", bottom: 16, right: 20,
+          position: "fixed", bottom: 20, right: 24,
           zIndex: 10,
           animation: "fadeIn 1.2s ease 0.6s both",
         }}>
           <div style={{
-            display: "flex", alignItems: "center", gap: 5,
-            opacity: 0.45,
+            display: "flex", flexDirection: "column", alignItems: "center",
+            gap: 2,
+            opacity: 0.5,
             transition: "opacity 0.3s ease",
           }}
-            onMouseEnter={(e) => e.currentTarget.style.opacity = "0.8"}
-            onMouseLeave={(e) => e.currentTarget.style.opacity = "0.45"}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = "0.85"}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = "0.5"}
           >
-            <span style={{ fontSize: 10, color: "#999", fontWeight: 500 }}>Powered by</span>
-            <img src="/nonii-logo.png" alt="nonii.ai" style={{ height: 13, mixBlendMode: "multiply" }} />
+            <span style={{ fontSize: 9, color: "#aaa", fontWeight: 500, letterSpacing: "0.04em" }}>Powered by</span>
+            <img src="/nonii-logo.png" alt="nonii.ai" style={{ height: 24 }} />
           </div>
         </div>
       </div>
