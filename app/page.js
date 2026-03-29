@@ -7,8 +7,8 @@ async function analyzeScreenshot(base64, mediaType) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ base64, mediaType }),
   });
-  if (!res.ok) throw new Error("Analysis failed");
   const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Analysis failed");
   return data.tasks;
 }
 
@@ -110,8 +110,8 @@ export default function Home() {
     try {
       const result = await analyzeScreenshot(image.base64, image.mediaType);
       setTasks(Array.isArray(result) ? result : [result]);
-    } catch {
-      setError("画像の解析に失敗しました。もう一度お試しください。");
+    } catch (e) {
+      setError(e?.message || "画像の解析に失敗しました。もう一度お試しください。");
     }
     setAnalyzing(false);
   };

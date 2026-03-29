@@ -2,6 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { formatLinePartnerRulesForPrompt } from "../../../lib/linePartnerRules.js";
 
+export const maxDuration = 60;
+
 export async function POST(req) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -16,7 +18,7 @@ export async function POST(req) {
     const today = new Date().toISOString().split("T")[0];
     const linePartnerBlock = formatLinePartnerRulesForPrompt();
 
-    const client = new Anthropic({ apiKey });
+    const client = new Anthropic({ apiKey, timeout: 55000 });
 
     const message = await client.messages.create({
       model: "claude-sonnet-4-20250514",
@@ -92,8 +94,9 @@ Respond ONLY with valid JSON array, no markdown fences, no explanation.`,
     return NextResponse.json({ tasks });
   } catch (err) {
     console.error("Analyze error:", err);
+    const msg = err?.message || String(err);
     return NextResponse.json(
-      { error: "Failed to analyze screenshot" },
+      { error: `解析エラー: ${msg}` },
       { status: 500 }
     );
   }
