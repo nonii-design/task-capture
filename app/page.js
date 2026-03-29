@@ -312,10 +312,14 @@ export default function Home() {
         maxWidth: 640, margin: "0 auto", padding: "32px 20px 80px",
       }}>
         {/* Header */}
-        <header style={{
-          textAlign: "center", marginBottom: 36,
-          animation: "fadeUp 0.7s ease both",
-        }}>
+        <header
+          onClick={resetForNew}
+          style={{
+            textAlign: "center", marginBottom: 36,
+            animation: "fadeUp 0.7s ease both",
+            cursor: "pointer",
+          }}
+        >
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "center",
             marginBottom: 12,
