@@ -820,6 +820,20 @@ export default function Home() {
           </div>
         )}
 
+        {/* Version – fixed bottom-left */}
+        <div style={{
+          position: "fixed", bottom: 20, left: 24,
+          zIndex: 10,
+          animation: "fadeIn 1.2s ease 0.6s both",
+        }}>
+          <span style={{
+            fontSize: 10, color: "#bbb", fontWeight: 500,
+            letterSpacing: "0.04em", opacity: 0.6,
+          }}>
+            Ver 2.0
+          </span>
+        </div>
+
         {/* nonii.ai logo – fixed bottom-right */}
         <div style={{
           position: "fixed", bottom: 20, right: 24,
