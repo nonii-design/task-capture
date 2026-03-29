@@ -187,6 +187,21 @@ export default function Home() {
     }
   };
 
+  const updateTask = (sectionIdx, taskIdx, field, value) => {
+    setResultSections((prev) =>
+      prev.map((s, si) =>
+        si === sectionIdx
+          ? {
+              ...s,
+              tasks: s.tasks.map((t, ti) =>
+                ti === taskIdx ? { ...t, [field]: value } : t
+              ),
+            }
+          : s
+      )
+    );
+  };
+
   const resetForNew = () => {
     setImages([]);
     setResultSections([]);
@@ -558,25 +573,42 @@ export default function Home() {
                           animation: `scaleIn 0.4s ease ${0.1 * globalIdx}s both`,
                         }}
                       >
+                        {/* Title */}
                         <div style={{
                           display: "flex", justifyContent: "space-between",
-                          alignItems: "flex-start", gap: 10,
+                          alignItems: "flex-start", gap: 8,
                         }}>
-                          <div style={{
-                            fontWeight: 600, fontSize: 15, color: "#1a1a2e",
-                            lineHeight: 1.5, flex: 1, wordBreak: "break-word",
+                          <span style={{
+                            fontSize: 10, fontWeight: 600, textTransform: "uppercase",
+                            letterSpacing: "0.08em", color: "#999",
+                            flexShrink: 0, paddingTop: 6,
                           }}>
-                            {task.title}
-                          </div>
+                            タスク名
+                          </span>
                           <CopyButton
                             text={task.title}
-                            label="タスク名"
+                            label="コピー"
                             copiedKey={`title-${globalIdx}`}
                             copiedState={copied}
                             onCopy={markCopied}
                           />
                         </div>
+                        <input
+                          type="text"
+                          value={task.title}
+                          onChange={(e) => updateTask(si, ti, "title", e.target.value)}
+                          style={{
+                            width: "100%", marginTop: 4,
+                            padding: "8px 10px", borderRadius: 10,
+                            border: "1px solid rgba(0,0,0,0.06)",
+                            background: "rgba(255,255,255,0.5)",
+                            fontSize: 14, fontWeight: 600, color: "#1a1a2e",
+                            fontFamily: "inherit", outline: "none",
+                            transition: "border-color 0.2s",
+                          }}
+                        />
 
+                        {/* Tags */}
                         <div style={{
                           display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap",
                         }}>
@@ -600,7 +632,8 @@ export default function Home() {
                           )}
                         </div>
 
-                        {task.description && (
+                        {/* Description */}
+                        {task.description != null && (
                           <div className="glass-subtle" style={{
                             marginTop: 14, padding: 14, borderRadius: 12,
                           }}>
@@ -617,18 +650,28 @@ export default function Home() {
                               </span>
                               <CopyButton
                                 text={task.description}
-                                label="説明"
+                                label="コピー"
                                 copiedKey={`desc-${globalIdx}`}
                                 copiedState={copied}
                                 onCopy={markCopied}
                               />
                             </div>
-                            <div style={{
-                              fontSize: 13, color: "#555",
-                              lineHeight: 1.7, whiteSpace: "pre-wrap",
-                            }}>
-                              {task.description}
-                            </div>
+                            <textarea
+                              value={task.description}
+                              onChange={(e) => updateTask(si, ti, "description", e.target.value)}
+                              rows={Math.max(3, task.description.split("\n").length + 1)}
+                              style={{
+                                width: "100%", padding: "8px 10px",
+                                borderRadius: 10,
+                                border: "1px solid rgba(0,0,0,0.06)",
+                                background: "rgba(255,255,255,0.5)",
+                                fontSize: 13, color: "#555",
+                                lineHeight: 1.7,
+                                fontFamily: "inherit", outline: "none",
+                                resize: "vertical",
+                                transition: "border-color 0.2s",
+                              }}
+                            />
                           </div>
                         )}
                       </div>
