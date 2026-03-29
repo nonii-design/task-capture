@@ -309,39 +309,58 @@ export default function Home() {
 
       <div style={{
         position: "relative", zIndex: 1,
-        maxWidth: 640, margin: "0 auto", padding: "32px 20px 80px",
+        maxWidth: hasResults ? 1200 : 640,
+        margin: "0 auto", padding: "32px 20px 80px",
+        transition: "max-width 0.4s ease",
       }}>
         {/* Header */}
         <header
           onClick={resetForNew}
           style={{
-            textAlign: "center", marginBottom: 36,
+            textAlign: "center", marginBottom: hasResults ? 20 : 36,
             animation: "fadeUp 0.7s ease both",
             cursor: "pointer",
           }}
         >
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "center",
-            marginBottom: 12,
+            gap: 10,
           }}>
             <div style={{ animation: "float 3s ease-in-out infinite" }}>
-              <TodoistIcon size={48} />
+              <TodoistIcon size={hasResults ? 28 : 48} />
             </div>
+            {hasResults ? (
+              <h1 style={{
+                fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em",
+                margin: 0,
+                background: "linear-gradient(135deg, #1a1a2e 0%, #e44332 50%, #ff7043 100%)",
+                backgroundSize: "200% auto",
+                animation: "shimmer 4s linear infinite",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}>
+                Task Capture
+              </h1>
+            ) : null}
           </div>
-          <h1 style={{
-            fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em",
-            margin: "8px 0 0",
-            background: "linear-gradient(135deg, #1a1a2e 0%, #e44332 50%, #ff7043 100%)",
-            backgroundSize: "200% auto",
-            animation: "shimmer 4s linear infinite",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}>
-            Task Capture
-          </h1>
-          <p style={{ fontSize: 13, color: "#888", marginTop: 4, fontWeight: 400 }}>
-            スクショ → AI解析 → Todoistタスク提案
-          </p>
+          {!hasResults && (
+            <>
+              <h1 style={{
+                fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em",
+                margin: "12px 0 0",
+                background: "linear-gradient(135deg, #1a1a2e 0%, #e44332 50%, #ff7043 100%)",
+                backgroundSize: "200% auto",
+                animation: "shimmer 4s linear infinite",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}>
+                Task Capture
+              </h1>
+              <p style={{ fontSize: 13, color: "#888", marginTop: 4, fontWeight: 400 }}>
+                スクショ → AI解析 → Todoistタスク提案
+              </p>
+            </>
+          )}
         </header>
 
         {error && (
@@ -547,9 +566,10 @@ export default function Home() {
           </div>
         )}
 
-        {/* Results */}
+        {/* Results – two-column layout */}
         {hasResults && (
-          <div style={{ marginTop: 28, animation: "fadeUp 0.5s ease both" }}>
+          <div style={{ animation: "fadeUp 0.5s ease both" }}>
+            {/* Toolbar */}
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
               marginBottom: 16,
@@ -563,265 +583,316 @@ export default function Home() {
                   抽出されたタスク（{allTasks.length}件）
                 </span>
               </div>
-              {allTasks.length > 0 && (
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {allTasks.length > 0 && (
+                  <button
+                    onClick={copyAll}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 5,
+                      padding: "6px 12px", borderRadius: 8,
+                      border: "1px solid",
+                      borderColor: copied.all ? "rgba(76,175,80,0.3)" : "rgba(0,0,0,0.08)",
+                      background: copied.all ? "rgba(76,175,80,0.06)" : "rgba(255,255,255,0.5)",
+                      backdropFilter: "blur(12px)",
+                      color: copied.all ? "#2e7d32" : "#666",
+                      fontSize: 11, fontWeight: 500, cursor: "pointer",
+                    }}
+                  >
+                    {copied.all ? "✓ コピー済み" : "📋 すべてコピー"}
+                  </button>
+                )}
                 <button
-                  onClick={copyAll}
+                  className="glass"
+                  onClick={resetForNew}
                   style={{
-                    display: "inline-flex", alignItems: "center", gap: 5,
                     padding: "6px 12px", borderRadius: 8,
-                    border: "1px solid",
-                    borderColor: copied.all ? "rgba(76,175,80,0.3)" : "rgba(0,0,0,0.08)",
-                    background: copied.all ? "rgba(76,175,80,0.06)" : "rgba(255,255,255,0.5)",
-                    backdropFilter: "blur(12px)",
-                    color: copied.all ? "#2e7d32" : "#666",
-                    fontSize: 11, fontWeight: 500, cursor: "pointer",
+                    fontSize: 11, fontWeight: 500,
+                    color: "#666", cursor: "pointer",
+                    border: "1px solid rgba(0,0,0,0.06)",
                   }}
                 >
-                  {copied.all ? "✓ コピー済み" : "📋 すべてコピー"}
+                  🔄 新規解析
                 </button>
-              )}
+              </div>
             </div>
 
-            {resultSections.map((section, si) => {
-              const showSectionHeader = resultSections.length > 1;
-              const taskOffset = resultSections
-                .slice(0, si)
-                .reduce((sum, s) => sum + s.tasks.length, 0);
-
-              return (
-                <div key={section.imageId} style={{
-                  marginBottom: showSectionHeader ? 24 : 0,
+            {/* Two-column: images left, tasks right */}
+            <div className="result-columns" style={{
+              display: "flex", gap: 24,
+              alignItems: "flex-start",
+            }}>
+              {/* Left column – source images */}
+              <div className="image-column" style={{
+                width: 380, flexShrink: 0,
+                position: "sticky", top: 20,
+                animation: "fadeUp 0.5s ease 0.1s both",
+              }}>
+                <div style={{
+                  fontSize: 10, fontWeight: 600, textTransform: "uppercase",
+                  letterSpacing: "0.08em", color: "#999",
+                  marginBottom: 10,
                 }}>
-                  {showSectionHeader && (
-                    <div className="glass" style={{
-                      display: "flex", alignItems: "center", gap: 10,
-                      padding: "10px 14px", borderRadius: 12,
-                      marginBottom: 12,
-                      animation: `fadeUp 0.4s ease ${0.1 * si}s both`,
+                  📎 元画像
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {images.map((img, idx) => (
+                    <div key={img.id} className="glass-strong" style={{
+                      borderRadius: 14, overflow: "hidden",
+                      animation: `scaleIn 0.4s ease ${0.1 * idx}s both`,
                     }}>
                       <img
-                        src={section.preview}
-                        alt={section.imageName}
+                        src={img.preview}
+                        alt={img.name}
                         style={{
-                          width: 36, height: 36, borderRadius: 8,
-                          objectFit: "cover",
+                          width: "100%", display: "block",
+                          borderRadius: 14,
                         }}
                       />
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
-                          画像 {si + 1}
+                      {images.length > 1 && (
+                        <div style={{
+                          padding: "6px 12px",
+                          fontSize: 10, color: "#999", fontWeight: 500,
+                          borderTop: "1px solid rgba(0,0,0,0.04)",
+                          background: "rgba(255,255,255,0.5)",
+                        }}>
+                          画像 {idx + 1}: {img.name}
                         </div>
-                        <div style={{ fontSize: 10, color: "#aaa" }}>
-                          {section.tasks.length}件のタスク
-                        </div>
-                      </div>
+                      )}
                     </div>
-                  )}
+                  ))}
+                </div>
+              </div>
 
-                  {section.error && (
-                    <div className="glass" style={{
-                      borderRadius: 12, padding: "10px 14px",
-                      fontSize: 12, color: "#c0392b",
-                      background: "rgba(228,67,50,0.06)",
-                      borderColor: "rgba(228,67,50,0.2)",
-                      marginBottom: 12,
+              {/* Right column – tasks */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {resultSections.map((section, si) => {
+                  const showSectionHeader = resultSections.length > 1;
+                  const taskOffset = resultSections
+                    .slice(0, si)
+                    .reduce((sum, s) => sum + s.tasks.length, 0);
+
+                  return (
+                    <div key={section.imageId} style={{
+                      marginBottom: showSectionHeader ? 24 : 0,
                     }}>
-                      {section.error}
-                    </div>
-                  )}
-
-                  {section.tasks.map((task, ti) => {
-                    const globalIdx = taskOffset + ti;
-                    const pc = priorityConfig[task.priority] || priorityConfig[1];
-                    return (
-                      <div
-                        key={ti}
-                        className="glass-strong"
-                        style={{
-                          borderRadius: 16, padding: 20, marginBottom: 12,
-                          animation: `scaleIn 0.4s ease ${0.1 * globalIdx}s both`,
-                        }}
-                      >
-                        {/* Title */}
-                        <div style={{
-                          display: "flex", justifyContent: "space-between",
-                          alignItems: "flex-start", gap: 8,
+                      {showSectionHeader && (
+                        <div className="glass" style={{
+                          display: "flex", alignItems: "center", gap: 10,
+                          padding: "10px 14px", borderRadius: 12,
+                          marginBottom: 12,
+                          animation: `fadeUp 0.4s ease ${0.1 * si}s both`,
                         }}>
-                          <span style={{
-                            fontSize: 10, fontWeight: 600, textTransform: "uppercase",
-                            letterSpacing: "0.08em", color: "#999",
-                            flexShrink: 0, paddingTop: 6,
-                          }}>
-                            タスク名
-                          </span>
-                          <CopyButton
-                            text={task.title}
-                            label="コピー"
-                            copiedKey={`title-${globalIdx}`}
-                            copiedState={copied}
-                            onCopy={markCopied}
+                          <img
+                            src={section.preview}
+                            alt={section.imageName}
+                            style={{
+                              width: 36, height: 36, borderRadius: 8,
+                              objectFit: "cover",
+                            }}
                           />
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+                              画像 {si + 1}
+                            </div>
+                            <div style={{ fontSize: 10, color: "#aaa" }}>
+                              {section.tasks.length}件のタスク
+                            </div>
+                          </div>
                         </div>
-                        <input
-                          type="text"
-                          value={task.title}
-                          onChange={(e) => updateTask(si, ti, "title", e.target.value)}
-                          style={{
-                            width: "100%", marginTop: 4,
-                            padding: "8px 10px", borderRadius: 10,
-                            border: "1px solid rgba(0,0,0,0.06)",
-                            background: "rgba(255,255,255,0.5)",
-                            fontSize: 14, fontWeight: 600, color: "#1a1a2e",
-                            fontFamily: "inherit", outline: "none",
-                            transition: "border-color 0.2s",
-                          }}
-                        />
+                      )}
 
-                        {/* Tags */}
-                        <div style={{
-                          display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap",
+                      {section.error && (
+                        <div className="glass" style={{
+                          borderRadius: 12, padding: "10px 14px",
+                          fontSize: 12, color: "#c0392b",
+                          background: "rgba(228,67,50,0.06)",
+                          borderColor: "rgba(228,67,50,0.2)",
+                          marginBottom: 12,
                         }}>
-                          <span style={{
-                            display: "inline-flex", alignItems: "center", gap: 4,
-                            padding: "3px 9px", borderRadius: 7,
-                            fontSize: 11, fontWeight: 600,
-                            color: pc.color, background: pc.bg,
-                          }}>
-                            優先度: {pc.label}
-                          </span>
-                          {task.due_date && (
-                            <span style={{
-                              display: "inline-flex", alignItems: "center", gap: 4,
-                              padding: "3px 9px", borderRadius: 7,
-                              fontSize: 11, fontWeight: 600,
-                              color: "#3b82f6", background: "rgba(59,130,246,0.08)",
-                            }}>
-                              📅 着手日: {task.due_date}
-                            </span>
-                          )}
+                          {section.error}
                         </div>
+                      )}
 
-                        {/* Description */}
-                        {task.description != null && (
-                          <div className="glass-subtle" style={{
-                            marginTop: 14, padding: 14, borderRadius: 12,
-                          }}>
+                      {section.tasks.map((task, ti) => {
+                        const globalIdx = taskOffset + ti;
+                        const pc = priorityConfig[task.priority] || priorityConfig[1];
+                        return (
+                          <div
+                            key={ti}
+                            className="glass-strong"
+                            style={{
+                              borderRadius: 16, padding: 20, marginBottom: 12,
+                              animation: `scaleIn 0.4s ease ${0.1 * globalIdx}s both`,
+                            }}
+                          >
+                            {/* Title */}
                             <div style={{
                               display: "flex", justifyContent: "space-between",
-                              alignItems: "center", marginBottom: 8,
+                              alignItems: "flex-start", gap: 8,
                             }}>
                               <span style={{
-                                fontSize: 10, fontWeight: 600,
-                                textTransform: "uppercase",
+                                fontSize: 10, fontWeight: 600, textTransform: "uppercase",
                                 letterSpacing: "0.08em", color: "#999",
+                                flexShrink: 0, paddingTop: 6,
                               }}>
-                                説明
+                                タスク名
                               </span>
                               <CopyButton
-                                text={task.description}
+                                text={task.title}
                                 label="コピー"
-                                copiedKey={`desc-${globalIdx}`}
+                                copiedKey={`title-${globalIdx}`}
                                 copiedState={copied}
                                 onCopy={markCopied}
                               />
                             </div>
-                            <textarea
-                              value={task.description}
-                              onChange={(e) => updateTask(si, ti, "description", e.target.value)}
-                              rows={Math.max(3, (task.description || "").split("\n").length + 1)}
+                            <input
+                              type="text"
+                              value={task.title}
+                              onChange={(e) => updateTask(si, ti, "title", e.target.value)}
                               style={{
-                                width: "100%", padding: "8px 10px",
-                                borderRadius: 10,
+                                width: "100%", marginTop: 4,
+                                padding: "8px 10px", borderRadius: 10,
                                 border: "1px solid rgba(0,0,0,0.06)",
                                 background: "rgba(255,255,255,0.5)",
-                                fontSize: 13, color: "#555",
-                                lineHeight: 1.7,
+                                fontSize: 14, fontWeight: 600, color: "#1a1a2e",
                                 fontFamily: "inherit", outline: "none",
-                                resize: "vertical",
                                 transition: "border-color 0.2s",
                               }}
                             />
-                          </div>
-                        )}
 
-                        {/* Save correction button */}
-                        {isTaskModified(si, ti) && (
-                          <div style={{
-                            marginTop: 12, display: "flex", justifyContent: "flex-end",
-                          }}>
-                            <button
-                              onClick={() => saveTaskCorrection(si, ti)}
-                              disabled={!!savedTasks[`${si}-${ti}`]}
-                              style={{
-                                display: "inline-flex", alignItems: "center", gap: 6,
-                                padding: "7px 16px", borderRadius: 10,
-                                border: "none",
-                                background: savedTasks[`${si}-${ti}`]
-                                  ? "linear-gradient(135deg, #43a047, #66bb6a)"
-                                  : "linear-gradient(135deg, #5c6bc0, #7c4dff)",
-                                color: "#fff",
-                                fontSize: 12, fontWeight: 600, cursor: "pointer",
-                                boxShadow: savedTasks[`${si}-${ti}`]
-                                  ? "0 2px 10px rgba(67,160,71,0.3)"
-                                  : "0 2px 10px rgba(124,77,255,0.3)",
-                                transition: "all 0.3s ease",
-                                animation: "scaleIn 0.25s ease both",
-                              }}
-                            >
-                              {savedTasks[`${si}-${ti}`] ? (
-                                <><span style={{ animation: "check-pop 0.3s ease" }}>✓</span> 保存しました</>
-                              ) : (
-                                <><span>💾</span> 修正を保存（学習）</>
+                            {/* Tags */}
+                            <div style={{
+                              display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap",
+                            }}>
+                              <span style={{
+                                display: "inline-flex", alignItems: "center", gap: 4,
+                                padding: "3px 9px", borderRadius: 7,
+                                fontSize: 11, fontWeight: 600,
+                                color: pc.color, background: pc.bg,
+                              }}>
+                                優先度: {pc.label}
+                              </span>
+                              {task.due_date && (
+                                <span style={{
+                                  display: "inline-flex", alignItems: "center", gap: 4,
+                                  padding: "3px 9px", borderRadius: 7,
+                                  fontSize: 11, fontWeight: 600,
+                                  color: "#3b82f6", background: "rgba(59,130,246,0.08)",
+                                }}>
+                                  📅 着手日: {task.due_date}
+                                </span>
                               )}
-                            </button>
+                            </div>
+
+                            {/* Description */}
+                            {task.description != null && (
+                              <div className="glass-subtle" style={{
+                                marginTop: 14, padding: 14, borderRadius: 12,
+                              }}>
+                                <div style={{
+                                  display: "flex", justifyContent: "space-between",
+                                  alignItems: "center", marginBottom: 8,
+                                }}>
+                                  <span style={{
+                                    fontSize: 10, fontWeight: 600,
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.08em", color: "#999",
+                                  }}>
+                                    説明
+                                  </span>
+                                  <CopyButton
+                                    text={task.description}
+                                    label="コピー"
+                                    copiedKey={`desc-${globalIdx}`}
+                                    copiedState={copied}
+                                    onCopy={markCopied}
+                                  />
+                                </div>
+                                <textarea
+                                  value={task.description}
+                                  onChange={(e) => updateTask(si, ti, "description", e.target.value)}
+                                  rows={Math.max(3, (task.description || "").split("\n").length + 1)}
+                                  style={{
+                                    width: "100%", padding: "8px 10px",
+                                    borderRadius: 10,
+                                    border: "1px solid rgba(0,0,0,0.06)",
+                                    background: "rgba(255,255,255,0.5)",
+                                    fontSize: 13, color: "#555",
+                                    lineHeight: 1.7,
+                                    fontFamily: "inherit", outline: "none",
+                                    resize: "vertical",
+                                    transition: "border-color 0.2s",
+                                  }}
+                                />
+                              </div>
+                            )}
+
+                            {/* Save correction button */}
+                            {isTaskModified(si, ti) && (
+                              <div style={{
+                                marginTop: 12, display: "flex", justifyContent: "flex-end",
+                              }}>
+                                <button
+                                  onClick={() => saveTaskCorrection(si, ti)}
+                                  disabled={!!savedTasks[`${si}-${ti}`]}
+                                  style={{
+                                    display: "inline-flex", alignItems: "center", gap: 6,
+                                    padding: "7px 16px", borderRadius: 10,
+                                    border: "none",
+                                    background: savedTasks[`${si}-${ti}`]
+                                      ? "linear-gradient(135deg, #43a047, #66bb6a)"
+                                      : "linear-gradient(135deg, #5c6bc0, #7c4dff)",
+                                    color: "#fff",
+                                    fontSize: 12, fontWeight: 600, cursor: "pointer",
+                                    boxShadow: savedTasks[`${si}-${ti}`]
+                                      ? "0 2px 10px rgba(67,160,71,0.3)"
+                                      : "0 2px 10px rgba(124,77,255,0.3)",
+                                    transition: "all 0.3s ease",
+                                    animation: "scaleIn 0.25s ease both",
+                                  }}
+                                >
+                                  {savedTasks[`${si}-${ti}`] ? (
+                                    <><span style={{ animation: "check-pop 0.3s ease" }}>✓</span> 保存しました</>
+                                  ) : (
+                                    <><span>💾</span> 修正を保存（学習）</>
+                                  )}
+                                </button>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
+                        );
+                      })}
+                    </div>
+                  );
+                })}
 
-            {/* Learning data indicator */}
-            {correctionCount > 0 && (
-              <div className="glass" style={{
-                marginTop: 16, padding: "10px 14px", borderRadius: 12,
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                animation: "fadeUp 0.4s ease both",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 13 }}>🧠</span>
-                  <span style={{ fontSize: 11, color: "#888" }}>
-                    学習データ: <strong style={{ color: "#5c6bc0" }}>{correctionCount}件</strong>の修正を記憶中
-                  </span>
-                </div>
-                <button
-                  onClick={clearCorrections}
-                  style={{
-                    background: "none", border: "none",
-                    fontSize: 10, color: "#bbb", cursor: "pointer",
-                    textDecoration: "underline",
-                  }}
-                >
-                  リセット
-                </button>
+                {/* Learning data indicator */}
+                {correctionCount > 0 && (
+                  <div className="glass" style={{
+                    marginTop: 16, padding: "10px 14px", borderRadius: 12,
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    animation: "fadeUp 0.4s ease both",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 13 }}>🧠</span>
+                      <span style={{ fontSize: 11, color: "#888" }}>
+                        学習データ: <strong style={{ color: "#5c6bc0" }}>{correctionCount}件</strong>の修正を記憶中
+                      </span>
+                    </div>
+                    <button
+                      onClick={clearCorrections}
+                      style={{
+                        background: "none", border: "none",
+                        fontSize: 10, color: "#bbb", cursor: "pointer",
+                        textDecoration: "underline",
+                      }}
+                    >
+                      リセット
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
-
-            <button
-              className="glass"
-              onClick={resetForNew}
-              style={{
-                marginTop: 12, width: "100%",
-                padding: "12px 20px", borderRadius: 12,
-                fontSize: 13, fontWeight: 500,
-                color: "#666", cursor: "pointer",
-                border: "1px solid rgba(0,0,0,0.06)",
-              }}
-            >
-              別のスクショを読み込む
-            </button>
+            </div>
           </div>
         )}
 

@@ -100,3 +100,13 @@ button:active {
   background: rgba(228, 67, 50, 0.15);
   color: inherit;
 }
+
+@media (max-width: 860px) {
+  .result-columns {
+    flex-direction: column !important;
+  }
+  .image-column {
+    width: 100% !important;
+    position: static !important;
+  }
+}
