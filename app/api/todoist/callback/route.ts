@@ -19,7 +19,6 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Verify state to prevent CSRF
   const cookieStore = await cookies();
   const savedState = cookieStore.get("todoist_oauth_state")?.value;
   if (state !== savedState) {
@@ -28,7 +27,6 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Exchange code for access token
   const tokenRes = await fetch("https://todoist.com/oauth/access_token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -48,7 +46,25 @@ export async function GET(request: NextRequest) {
 
   const { access_token } = await tokenRes.json();
 
-  // Store token in cookie and clean up state cookie
+  // Fetch user email from Todoist Sync API
+  let userEmail = "";
+  try {
+    const userRes = await fetch("https://api.todoist.com/sync/v9/sync", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ sync_token: "*", resource_types: ["user"] }),
+    });
+    if (userRes.ok) {
+      const userData = await userRes.json();
+      userEmail = userData.user?.email || "";
+    }
+  } catch (e) {
+    console.error("Failed to fetch user email:", e);
+  }
+
   const response = NextResponse.redirect(
     `${process.env.NEXT_PUBLIC_APP_URL}/?todoist_connected=true`
   );
@@ -57,9 +73,19 @@ export async function GET(request: NextRequest) {
     httpOnly: true,
     secure: true,
     sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 365, // 1 year
+    maxAge: 60 * 60 * 24 * 365,
     path: "/",
   });
+
+  if (userEmail) {
+    response.cookies.set("todoist_email", userEmail, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 365,
+      path: "/",
+    });
+  }
 
   response.cookies.delete("todoist_oauth_state");
 

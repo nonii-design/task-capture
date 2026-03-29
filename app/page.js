@@ -96,6 +96,8 @@ export default function Home() {
   const [partnerName, setPartnerName] = useState("");
   const [correctionCount, setCorrectionCount] = useState(0);
   const [todoistConnected, setTodoistConnected] = useState(false);
+  const [todoistEmail, setTodoistEmail] = useState(null);
+  const [todoistProjectName, setTodoistProjectName] = useState(null);
   const [todoistAdding, setTodoistAdding] = useState({});
   const [todoistAdded, setTodoistAdded] = useState({});
   const fileRef = useRef();
@@ -103,15 +105,26 @@ export default function Home() {
   useEffect(() => {
     setMounted(true);
     setCorrectionCount(loadCorrections().length);
-    // Check Todoist connection status
     fetch("/api/todoist/status")
       .then((r) => r.json())
-      .then((d) => setTodoistConnected(d.connected))
+      .then((d) => {
+        setTodoistConnected(d.connected);
+        if (d.connected) {
+          setTodoistEmail(d.email || null);
+          setTodoistProjectName(d.projectName || null);
+        }
+      })
       .catch(() => {});
-    // Handle callback query params
     const params = new URLSearchParams(window.location.search);
     if (params.get("todoist_connected") === "true") {
       setTodoistConnected(true);
+      fetch("/api/todoist/status")
+        .then((r) => r.json())
+        .then((d) => {
+          setTodoistEmail(d.email || null);
+          setTodoistProjectName(d.projectName || null);
+        })
+        .catch(() => {});
       window.history.replaceState({}, "", "/");
     }
     if (params.get("todoist_error")) {
@@ -435,14 +448,25 @@ export default function Home() {
         }}>
           {todoistConnected ? (
             <div style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              padding: "6px 14px", borderRadius: 20,
-              background: "rgba(76,175,80,0.08)",
-              border: "1px solid rgba(76,175,80,0.2)",
-              fontSize: 12, color: "#2e7d32", fontWeight: 500,
+              display: "inline-flex", flexDirection: "column", alignItems: "center",
+              gap: 4,
             }}>
-              <TodoistIcon size={16} />
-              Todoist連携済み
+              <div style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "6px 14px", borderRadius: 20,
+                background: "rgba(76,175,80,0.08)",
+                border: "1px solid rgba(76,175,80,0.2)",
+                fontSize: 12, color: "#2e7d32", fontWeight: 500,
+              }}>
+                <TodoistIcon size={16} />
+                Todoist連携済み
+              </div>
+              {todoistProjectName && (
+                <span style={{ fontSize: 10, color: "#888" }}>
+                  📂 {todoistProjectName}
+                  {todoistEmail && <span style={{ color: "#bbb" }}> ({todoistEmail})</span>}
+                </span>
+              )}
             </div>
           ) : (
             <a
