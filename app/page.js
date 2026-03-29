@@ -1082,7 +1082,7 @@ export default function Home() {
             fontSize: 10, color: "#bbb", fontWeight: 500,
             letterSpacing: "0.04em", opacity: 0.6,
           }}>
-            Ver 2.0
+            Ver 3.0
           </span>
         </div>
 
