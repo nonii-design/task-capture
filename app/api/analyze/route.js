@@ -26,6 +26,9 @@ export async function POST(req) {
       const recent = corrections.slice(-15);
       const examples = recent.map((c, i) => {
         const lines = [`例${i + 1}:`];
+        if (c.partnerName) {
+          lines.push(`  指定された取引先名: 「${c.partnerName}」`);
+        }
         if (c.original.title !== c.corrected.title) {
           lines.push(`  タスク名: 「${c.original.title}」→「${c.corrected.title}」`);
         }
@@ -37,7 +40,7 @@ export async function POST(req) {
         return lines.join("\n");
       }).join("\n");
       correctionsBlock = `\n■ ユーザーの過去の修正（学習データ）
-以下はユーザーがAI出力を手動修正した履歴です。同様のケースでは修正後の書き方に合わせてください：
+以下はユーザーがAI出力を手動修正した履歴です。取引先名の指定がある場合はその名前の使い方を学び、タスク名・説明の修正パターンに合わせてください：
 ${examples}\n`;
     }
 

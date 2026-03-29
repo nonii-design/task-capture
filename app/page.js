@@ -237,6 +237,7 @@ export default function Home() {
       timestamp: new Date().toISOString(),
       original: { title: orig.title, description: orig.description },
       corrected: { title: current.title, description: current.description || "" },
+      partnerName: partnerName?.trim() || null,
     };
     const list = loadCorrections();
     list.push(correction);
