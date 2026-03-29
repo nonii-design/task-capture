@@ -14,9 +14,12 @@ export async function POST(req) {
   }
 
   try {
-    const { base64, mediaType } = await req.json();
+    const { base64, mediaType, partnerName } = await req.json();
     const today = new Date().toISOString().split("T")[0];
     const linePartnerBlock = formatLinePartnerRulesForPrompt();
+    const partnerOverride = partnerName?.trim()
+      ? `\n■ 取引先の指定\nユーザーが取引先名を「${partnerName.trim()}」と指定しています。タスク名の納品先にはこの名前を使ってください（LINEヘッダーの自動判定より優先）。\n`
+      : "";
 
     const client = new Anthropic({ apiKey, timeout: 55000 });
 
@@ -40,7 +43,7 @@ export async function POST(req) {
               text: `あなたは発送TODO管理の専門アシスタントです。スクリーンショットから受注・発送タスクを抽出してください。
 
 今日は ${today} です。
-
+${partnerOverride}
 ${linePartnerBlock}
 
 ■ タスク名のルール

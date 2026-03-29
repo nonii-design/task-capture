@@ -1,11 +1,13 @@
 "use client";
 import { useState, useRef, useCallback, useEffect } from "react";
 
-async function analyzeScreenshot(base64, mediaType) {
+async function analyzeScreenshot(base64, mediaType, partnerName) {
+  const body = { base64, mediaType };
+  if (partnerName?.trim()) body.partnerName = partnerName.trim();
   const res = await fetch("/api/analyze", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ base64, mediaType }),
+    body: JSON.stringify(body),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Analysis failed");
@@ -77,6 +79,7 @@ export default function Home() {
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState(null);
   const [mounted, setMounted] = useState(false);
+  const [partnerName, setPartnerName] = useState("");
   const fileRef = useRef();
 
   useEffect(() => setMounted(true), []);
@@ -108,7 +111,7 @@ export default function Home() {
     setAnalyzing(true);
     setError(null);
     try {
-      const result = await analyzeScreenshot(image.base64, image.mediaType);
+      const result = await analyzeScreenshot(image.base64, image.mediaType, partnerName);
       setTasks(Array.isArray(result) ? result : [result]);
     } catch (e) {
       setError(e?.message || "画像の解析に失敗しました。もう一度お試しください。");
@@ -146,6 +149,7 @@ export default function Home() {
     setImage(null);
     setImagePreview(null);
     setError(null);
+    setPartnerName("");
   };
 
   return (
@@ -292,9 +296,43 @@ export default function Home() {
           )}
         </div>
 
-        {/* Analyze button */}
+        {/* Partner name input + Analyze button */}
         {image && tasks.length === 0 && (
           <div style={{ marginTop: 16, animation: "fadeUp 0.4s ease both" }}>
+            <div
+              className="glass"
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "10px 14px", borderRadius: 12,
+                marginBottom: 12,
+              }}
+            >
+              <span style={{ fontSize: 13, flexShrink: 0 }}>🏢</span>
+              <input
+                type="text"
+                placeholder="取引先名（任意：空欄ならスクショから自動判定）"
+                value={partnerName}
+                onChange={(e) => setPartnerName(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  flex: 1, border: "none", background: "transparent",
+                  fontSize: 13, color: "#1a1a2e", outline: "none",
+                  fontFamily: "inherit",
+                }}
+              />
+              {partnerName && (
+                <button
+                  onClick={() => setPartnerName("")}
+                  style={{
+                    background: "none", border: "none",
+                    color: "#aaa", cursor: "pointer", fontSize: 14,
+                    padding: "2px 4px", lineHeight: 1,
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
             <button
               onClick={analyze}
               disabled={analyzing}
