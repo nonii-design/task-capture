@@ -32,18 +32,13 @@ function CopyButton({ text, label, copiedKey, copiedState, onCopy }) {
         } catch {}
       }}
       style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 5,
-        padding: "5px 10px",
-        borderRadius: 8,
+        display: "inline-flex", alignItems: "center", gap: 5,
+        padding: "5px 10px", borderRadius: 8,
         border: "1px solid",
         borderColor: isCopied ? "rgba(76,175,80,0.3)" : "rgba(0,0,0,0.08)",
         background: isCopied ? "rgba(76,175,80,0.06)" : "rgba(0,0,0,0.02)",
         color: isCopied ? "#2e7d32" : "#666",
-        fontSize: 11,
-        fontWeight: 500,
-        cursor: "pointer",
+        fontSize: 11, fontWeight: 500, cursor: "pointer",
         transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)",
       }}
     >
@@ -70,10 +65,11 @@ function TodoistIcon({ size = 20 }) {
   );
 }
 
+let imageIdCounter = 0;
+
 export default function Home() {
-  const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [tasks, setTasks] = useState([]);
+  const [images, setImages] = useState([]);
+  const [resultSections, setResultSections] = useState([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [copied, setCopied] = useState({});
   const [dragOver, setDragOver] = useState(false);
@@ -84,40 +80,78 @@ export default function Home() {
 
   useEffect(() => setMounted(true), []);
 
-  const handleFile = useCallback((file) => {
-    if (!file?.type.startsWith("image/")) return;
-    setError(null);
-    setTasks([]);
-    setCopied({});
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setImagePreview(e.target.result);
-      setImage({ base64: e.target.result.split(",")[1], mediaType: file.type });
-    };
-    reader.readAsDataURL(file);
+  const addFiles = useCallback((files) => {
+    const newImages = [];
+    Array.from(files).forEach((file) => {
+      if (!file?.type.startsWith("image/")) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const id = ++imageIdCounter;
+        newImages.push({
+          id,
+          preview: e.target.result,
+          base64: e.target.result.split(",")[1],
+          mediaType: file.type,
+          name: file.name,
+        });
+        if (newImages.length === files.length || newImages.length === Array.from(files).filter(f => f?.type.startsWith("image/")).length) {
+          setImages((prev) => [...prev, ...newImages]);
+          setError(null);
+          setResultSections([]);
+          setCopied({});
+        }
+      };
+      reader.readAsDataURL(file);
+    });
   }, []);
+
+  const removeImage = (id) => {
+    setImages((prev) => prev.filter((img) => img.id !== id));
+    setResultSections([]);
+    setCopied({});
+  };
 
   const onDrop = useCallback(
     (e) => {
       e.preventDefault();
       setDragOver(false);
-      handleFile(e.dataTransfer?.files?.[0]);
+      if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files);
     },
-    [handleFile]
+    [addFiles]
   );
 
   const analyze = async () => {
-    if (!image) return;
+    if (!images.length) return;
     setAnalyzing(true);
     setError(null);
-    try {
-      const result = await analyzeScreenshot(image.base64, image.mediaType, partnerName);
-      setTasks(Array.isArray(result) ? result : [result]);
-    } catch (e) {
-      setError(e?.message || "画像の解析に失敗しました。もう一度お試しください。");
+    setResultSections([]);
+
+    const sections = [];
+    for (const img of images) {
+      try {
+        const tasks = await analyzeScreenshot(img.base64, img.mediaType, partnerName);
+        sections.push({
+          imageId: img.id,
+          imageName: img.name,
+          preview: img.preview,
+          tasks: Array.isArray(tasks) ? tasks : [tasks],
+          error: null,
+        });
+      } catch (e) {
+        sections.push({
+          imageId: img.id,
+          imageName: img.name,
+          preview: img.preview,
+          tasks: [],
+          error: e?.message || "解析に失敗しました",
+        });
+      }
     }
+    setResultSections(sections);
     setAnalyzing(false);
   };
+
+  const allTasks = resultSections.flatMap((s) => s.tasks);
 
   const markCopied = (key) => {
     setCopied((p) => ({ ...p, [key]: true }));
@@ -125,15 +159,25 @@ export default function Home() {
   };
 
   const copyAll = async () => {
-    const text = tasks
-      .map((t, i) => {
-        const pc = priorityConfig[t.priority] || priorityConfig[1];
-        const lines = [`── タスク ${i + 1} ──`, `タスク名: ${t.title}`];
-        if (t.due_date) lines.push(`予定日（着手日）: ${t.due_date}`);
-        lines.push(`優先度: ${pc.label}`);
-        if (t.description) lines.push(`説明:\n${t.description}`);
-        return lines.join("\n");
+    let globalIdx = 0;
+    const text = resultSections
+      .map((section, si) => {
+        if (!section.tasks.length) return null;
+        const header = resultSections.length > 1 ? `━━ 画像${si + 1}: ${section.imageName} ━━\n` : "";
+        const body = section.tasks
+          .map((t) => {
+            globalIdx++;
+            const pc = priorityConfig[t.priority] || priorityConfig[1];
+            const lines = [`── タスク ${globalIdx} ──`, `タスク名: ${t.title}`];
+            if (t.due_date) lines.push(`予定日（着手日）: ${t.due_date}`);
+            lines.push(`優先度: ${pc.label}`);
+            if (t.description) lines.push(`説明:\n${t.description}`);
+            return lines.join("\n");
+          })
+          .join("\n\n");
+        return header + body;
       })
+      .filter(Boolean)
       .join("\n\n");
     try {
       await navigator.clipboard.writeText(text);
@@ -144,13 +188,14 @@ export default function Home() {
   };
 
   const resetForNew = () => {
-    setTasks([]);
+    setImages([]);
+    setResultSections([]);
     setCopied({});
-    setImage(null);
-    setImagePreview(null);
     setError(null);
     setPartnerName("");
   };
+
+  const hasResults = resultSections.length > 0;
 
   return (
     <div style={{
@@ -170,15 +215,13 @@ export default function Home() {
       }}>
         <div style={{
           position: "absolute", top: "-10%", right: "-5%",
-          width: 500, height: 500,
-          borderRadius: "50%",
+          width: 500, height: 500, borderRadius: "50%",
           background: "radial-gradient(circle, rgba(228,67,50,0.06) 0%, transparent 70%)",
           filter: "blur(60px)",
         }} />
         <div style={{
           position: "absolute", bottom: "-5%", left: "-10%",
-          width: 400, height: 400,
-          borderRadius: "50%",
+          width: 400, height: 400, borderRadius: "50%",
           background: "radial-gradient(circle, rgba(96,165,250,0.05) 0%, transparent 70%)",
           filter: "blur(60px)",
         }} />
@@ -190,8 +233,7 @@ export default function Home() {
       }}>
         {/* Header */}
         <header style={{
-          textAlign: "center",
-          marginBottom: 36,
+          textAlign: "center", marginBottom: 36,
           animation: "fadeUp 0.7s ease both",
         }}>
           <div style={{
@@ -213,91 +255,144 @@ export default function Home() {
           }}>
             Task Capture
           </h1>
-          <p style={{
-            fontSize: 13, color: "#888", marginTop: 4, fontWeight: 400,
-          }}>
+          <p style={{ fontSize: 13, color: "#888", marginTop: 4, fontWeight: 400 }}>
             スクショ → AI解析 → Todoistタスク提案
           </p>
         </header>
 
         {error && (
-          <div
-            className="glass"
-            style={{
-              borderRadius: 12, padding: "12px 16px",
-              fontSize: 13, color: "#c0392b",
-              borderColor: "rgba(228,67,50,0.2)",
-              background: "rgba(228,67,50,0.06)",
-              marginBottom: 16,
-              animation: "scaleIn 0.3s ease both",
-            }}
-          >
+          <div className="glass" style={{
+            borderRadius: 12, padding: "12px 16px",
+            fontSize: 13, color: "#c0392b",
+            borderColor: "rgba(228,67,50,0.2)",
+            background: "rgba(228,67,50,0.06)",
+            marginBottom: 16,
+            animation: "scaleIn 0.3s ease both",
+          }}>
             {error}
           </div>
         )}
 
         {/* Dropzone */}
-        <div
-          className="glass-strong"
-          style={{
-            borderRadius: 20,
-            padding: imagePreview ? 0 : "52px 24px",
-            textAlign: "center",
-            cursor: "pointer",
-            borderColor: dragOver ? "rgba(228,67,50,0.4)" : undefined,
-            background: dragOver ? "rgba(228,67,50,0.04)" : undefined,
-            overflow: "hidden",
-            transition: "all 0.35s cubic-bezier(0.4,0,0.2,1)",
-            animation: "fadeUp 0.7s ease 0.1s both",
-          }}
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={onDrop}
-          onClick={() => fileRef.current?.click()}
-        >
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            style={{ display: "none" }}
-            onChange={(e) => handleFile(e.target.files?.[0])}
-          />
-          {imagePreview ? (
-            <img
-              src={imagePreview}
-              alt="Preview"
-              style={{
-                width: "100%", maxHeight: 340,
-                objectFit: "contain", display: "block",
-                borderRadius: 18,
+        {!hasResults && (
+          <div
+            className="glass-strong"
+            style={{
+              borderRadius: 20,
+              padding: images.length ? "16px" : "52px 24px",
+              textAlign: "center",
+              cursor: "pointer",
+              borderColor: dragOver ? "rgba(228,67,50,0.4)" : undefined,
+              background: dragOver ? "rgba(228,67,50,0.04)" : undefined,
+              overflow: "hidden",
+              transition: "all 0.35s cubic-bezier(0.4,0,0.2,1)",
+              animation: "fadeUp 0.7s ease 0.1s both",
+            }}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={onDrop}
+            onClick={() => fileRef.current?.click()}
+          >
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              multiple
+              style={{ display: "none" }}
+              onChange={(e) => {
+                if (e.target.files?.length) addFiles(e.target.files);
+                e.target.value = "";
               }}
             />
-          ) : (
-            <div>
-              <div style={{
-                width: 56, height: 56, borderRadius: 16, margin: "0 auto 16px",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                background: "rgba(228,67,50,0.06)",
-                border: "1px solid rgba(228,67,50,0.1)",
-              }}>
-                <span style={{ fontSize: 26 }}>📱</span>
+
+            {images.length > 0 ? (
+              <div onClick={(e) => e.stopPropagation()}>
+                <div style={{
+                  display: "flex", flexWrap: "wrap", gap: 10,
+                  justifyContent: "center",
+                }}>
+                  {images.map((img) => (
+                    <div key={img.id} style={{
+                      position: "relative",
+                      width: 100, height: 100,
+                      borderRadius: 12, overflow: "hidden",
+                      border: "1px solid rgba(0,0,0,0.06)",
+                      animation: "scaleIn 0.3s ease both",
+                    }}>
+                      <img
+                        src={img.preview}
+                        alt={img.name}
+                        style={{
+                          width: "100%", height: "100%",
+                          objectFit: "cover", display: "block",
+                        }}
+                      />
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeImage(img.id); }}
+                        style={{
+                          position: "absolute", top: 4, right: 4,
+                          width: 22, height: 22, borderRadius: "50%",
+                          background: "rgba(0,0,0,0.55)",
+                          backdropFilter: "blur(8px)",
+                          border: "none", color: "#fff",
+                          fontSize: 12, lineHeight: 1,
+                          cursor: "pointer",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Add more button */}
+                  <div
+                    onClick={() => fileRef.current?.click()}
+                    style={{
+                      width: 100, height: 100,
+                      borderRadius: 12,
+                      border: "2px dashed rgba(0,0,0,0.1)",
+                      display: "flex", flexDirection: "column",
+                      alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", gap: 4,
+                      transition: "border-color 0.2s",
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.borderColor = "rgba(228,67,50,0.4)"}
+                    onMouseLeave={(e) => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"}
+                  >
+                    <span style={{ fontSize: 20, color: "#bbb" }}>+</span>
+                    <span style={{ fontSize: 10, color: "#aaa" }}>追加</span>
+                  </div>
+                </div>
+                <p style={{
+                  margin: "10px 0 0", fontSize: 11, color: "#aaa",
+                }}>
+                  {images.length}枚の画像を選択中
+                </p>
               </div>
-              <p style={{
-                margin: 0, fontSize: 14, fontWeight: 500, color: "#555",
-              }}>
-                スクリーンショットをドロップ / タップして選択
-              </p>
-              <p style={{
-                margin: "8px 0 0", fontSize: 12, color: "#aaa",
-              }}>
-                PNG, JPG, WEBP 対応
-              </p>
-            </div>
-          )}
-        </div>
+            ) : (
+              <div>
+                <div style={{
+                  width: 56, height: 56, borderRadius: 16, margin: "0 auto 16px",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "rgba(228,67,50,0.06)",
+                  border: "1px solid rgba(228,67,50,0.1)",
+                }}>
+                  <span style={{ fontSize: 26 }}>📱</span>
+                </div>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "#555" }}>
+                  スクリーンショットをドロップ / タップして選択
+                </p>
+                <p style={{ margin: "8px 0 0", fontSize: 12, color: "#aaa" }}>
+                  PNG, JPG, WEBP 対応（複数可）
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Partner name input + Analyze button */}
-        {image && tasks.length === 0 && (
+        {images.length > 0 && !hasResults && (
           <div style={{ marginTop: 16, animation: "fadeUp 0.4s ease both" }}>
             <div
               className="glass"
@@ -359,17 +454,17 @@ export default function Home() {
                     borderRadius: "50%",
                     animation: "spin 0.7s linear infinite",
                   }} />
-                  AI解析中...
+                  AI解析中...（{images.length}枚）
                 </>
               ) : (
-                "🔍 タスクを解析する"
+                `🔍 タスクを解析する（${images.length}枚）`
               )}
             </button>
           </div>
         )}
 
-        {/* Task list */}
-        {tasks.length > 0 && (
+        {/* Results */}
+        {hasResults && (
           <div style={{ marginTop: 28, animation: "fadeUp 0.5s ease both" }}>
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -381,113 +476,164 @@ export default function Home() {
                   fontSize: 12, fontWeight: 600, textTransform: "uppercase",
                   letterSpacing: "0.06em", color: "#888",
                 }}>
-                  抽出されたタスク（{tasks.length}件）
+                  抽出されたタスク（{allTasks.length}件）
                 </span>
               </div>
-              <button
-                onClick={copyAll}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 5,
-                  padding: "6px 12px", borderRadius: 8,
-                  border: "1px solid",
-                  borderColor: copied.all ? "rgba(76,175,80,0.3)" : "rgba(0,0,0,0.08)",
-                  background: copied.all ? "rgba(76,175,80,0.06)" : "rgba(255,255,255,0.5)",
-                  backdropFilter: "blur(12px)",
-                  color: copied.all ? "#2e7d32" : "#666",
-                  fontSize: 11, fontWeight: 500, cursor: "pointer",
-                }}
-              >
-                {copied.all ? "✓ コピー済み" : "📋 すべてコピー"}
-              </button>
-            </div>
-
-            {tasks.map((task, i) => {
-              const pc = priorityConfig[task.priority] || priorityConfig[1];
-              return (
-                <div
-                  key={i}
-                  className="glass-strong"
+              {allTasks.length > 0 && (
+                <button
+                  onClick={copyAll}
                   style={{
-                    borderRadius: 16, padding: 20, marginBottom: 12,
-                    animation: `scaleIn 0.4s ease ${0.1 * i}s both`,
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    padding: "6px 12px", borderRadius: 8,
+                    border: "1px solid",
+                    borderColor: copied.all ? "rgba(76,175,80,0.3)" : "rgba(0,0,0,0.08)",
+                    background: copied.all ? "rgba(76,175,80,0.06)" : "rgba(255,255,255,0.5)",
+                    backdropFilter: "blur(12px)",
+                    color: copied.all ? "#2e7d32" : "#666",
+                    fontSize: 11, fontWeight: 500, cursor: "pointer",
                   }}
                 >
-                  {/* Title row */}
-                  <div style={{
-                    display: "flex", justifyContent: "space-between",
-                    alignItems: "flex-start", gap: 10,
-                  }}>
-                    <div style={{
-                      fontWeight: 600, fontSize: 15, color: "#1a1a2e",
-                      lineHeight: 1.5, flex: 1, wordBreak: "break-word",
-                    }}>
-                      {task.title}
-                    </div>
-                    <CopyButton
-                      text={task.title}
-                      label="タスク名"
-                      copiedKey={`title-${i}`}
-                      copiedState={copied}
-                      onCopy={markCopied}
-                    />
-                  </div>
+                  {copied.all ? "✓ コピー済み" : "📋 すべてコピー"}
+                </button>
+              )}
+            </div>
 
-                  {/* Tags */}
-                  <div style={{
-                    display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap",
-                  }}>
-                    <span style={{
-                      display: "inline-flex", alignItems: "center", gap: 4,
-                      padding: "3px 9px", borderRadius: 7,
-                      fontSize: 11, fontWeight: 600,
-                      color: pc.color, background: pc.bg,
-                    }}>
-                      優先度: {pc.label}
-                    </span>
-                    {task.due_date && (
-                      <span style={{
-                        display: "inline-flex", alignItems: "center", gap: 4,
-                        padding: "3px 9px", borderRadius: 7,
-                        fontSize: 11, fontWeight: 600,
-                        color: "#3b82f6", background: "rgba(59,130,246,0.08)",
-                      }}>
-                        📅 着手日: {task.due_date}
-                      </span>
-                    )}
-                  </div>
+            {resultSections.map((section, si) => {
+              const showSectionHeader = resultSections.length > 1;
+              const taskOffset = resultSections
+                .slice(0, si)
+                .reduce((sum, s) => sum + s.tasks.length, 0);
 
-                  {/* Description */}
-                  {task.description && (
-                    <div className="glass-subtle" style={{
-                      marginTop: 14, padding: 14, borderRadius: 12,
+              return (
+                <div key={section.imageId} style={{
+                  marginBottom: showSectionHeader ? 24 : 0,
+                }}>
+                  {showSectionHeader && (
+                    <div className="glass" style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "10px 14px", borderRadius: 12,
+                      marginBottom: 12,
+                      animation: `fadeUp 0.4s ease ${0.1 * si}s both`,
                     }}>
-                      <div style={{
-                        display: "flex", justifyContent: "space-between",
-                        alignItems: "center", marginBottom: 8,
-                      }}>
-                        <span style={{
-                          fontSize: 10, fontWeight: 600,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.08em", color: "#999",
-                        }}>
-                          説明
-                        </span>
-                        <CopyButton
-                          text={task.description}
-                          label="説明"
-                          copiedKey={`desc-${i}`}
-                          copiedState={copied}
-                          onCopy={markCopied}
-                        />
-                      </div>
-                      <div style={{
-                        fontSize: 13, color: "#555",
-                        lineHeight: 1.7, whiteSpace: "pre-wrap",
-                      }}>
-                        {task.description}
+                      <img
+                        src={section.preview}
+                        alt={section.imageName}
+                        style={{
+                          width: 36, height: 36, borderRadius: 8,
+                          objectFit: "cover",
+                        }}
+                      />
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+                          画像 {si + 1}
+                        </div>
+                        <div style={{ fontSize: 10, color: "#aaa" }}>
+                          {section.tasks.length}件のタスク
+                        </div>
                       </div>
                     </div>
                   )}
+
+                  {section.error && (
+                    <div className="glass" style={{
+                      borderRadius: 12, padding: "10px 14px",
+                      fontSize: 12, color: "#c0392b",
+                      background: "rgba(228,67,50,0.06)",
+                      borderColor: "rgba(228,67,50,0.2)",
+                      marginBottom: 12,
+                    }}>
+                      {section.error}
+                    </div>
+                  )}
+
+                  {section.tasks.map((task, ti) => {
+                    const globalIdx = taskOffset + ti;
+                    const pc = priorityConfig[task.priority] || priorityConfig[1];
+                    return (
+                      <div
+                        key={ti}
+                        className="glass-strong"
+                        style={{
+                          borderRadius: 16, padding: 20, marginBottom: 12,
+                          animation: `scaleIn 0.4s ease ${0.1 * globalIdx}s both`,
+                        }}
+                      >
+                        <div style={{
+                          display: "flex", justifyContent: "space-between",
+                          alignItems: "flex-start", gap: 10,
+                        }}>
+                          <div style={{
+                            fontWeight: 600, fontSize: 15, color: "#1a1a2e",
+                            lineHeight: 1.5, flex: 1, wordBreak: "break-word",
+                          }}>
+                            {task.title}
+                          </div>
+                          <CopyButton
+                            text={task.title}
+                            label="タスク名"
+                            copiedKey={`title-${globalIdx}`}
+                            copiedState={copied}
+                            onCopy={markCopied}
+                          />
+                        </div>
+
+                        <div style={{
+                          display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap",
+                        }}>
+                          <span style={{
+                            display: "inline-flex", alignItems: "center", gap: 4,
+                            padding: "3px 9px", borderRadius: 7,
+                            fontSize: 11, fontWeight: 600,
+                            color: pc.color, background: pc.bg,
+                          }}>
+                            優先度: {pc.label}
+                          </span>
+                          {task.due_date && (
+                            <span style={{
+                              display: "inline-flex", alignItems: "center", gap: 4,
+                              padding: "3px 9px", borderRadius: 7,
+                              fontSize: 11, fontWeight: 600,
+                              color: "#3b82f6", background: "rgba(59,130,246,0.08)",
+                            }}>
+                              📅 着手日: {task.due_date}
+                            </span>
+                          )}
+                        </div>
+
+                        {task.description && (
+                          <div className="glass-subtle" style={{
+                            marginTop: 14, padding: 14, borderRadius: 12,
+                          }}>
+                            <div style={{
+                              display: "flex", justifyContent: "space-between",
+                              alignItems: "center", marginBottom: 8,
+                            }}>
+                              <span style={{
+                                fontSize: 10, fontWeight: 600,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.08em", color: "#999",
+                              }}>
+                                説明
+                              </span>
+                              <CopyButton
+                                text={task.description}
+                                label="説明"
+                                copiedKey={`desc-${globalIdx}`}
+                                copiedState={copied}
+                                onCopy={markCopied}
+                              />
+                            </div>
+                            <div style={{
+                              fontSize: 13, color: "#555",
+                              lineHeight: 1.7, whiteSpace: "pre-wrap",
+                            }}>
+                              {task.description}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}
@@ -516,8 +662,7 @@ export default function Home() {
         }}>
           <div style={{
             display: "flex", flexDirection: "column", alignItems: "center",
-            gap: 2,
-            opacity: 0.5,
+            gap: 2, opacity: 0.5,
             transition: "opacity 0.3s ease",
           }}
             onMouseEnter={(e) => e.currentTarget.style.opacity = "0.85"}
