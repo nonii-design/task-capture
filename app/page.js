@@ -95,11 +95,29 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [partnerName, setPartnerName] = useState("");
   const [correctionCount, setCorrectionCount] = useState(0);
+  const [todoistConnected, setTodoistConnected] = useState(false);
+  const [todoistAdding, setTodoistAdding] = useState({});
+  const [todoistAdded, setTodoistAdded] = useState({});
   const fileRef = useRef();
 
   useEffect(() => {
     setMounted(true);
     setCorrectionCount(loadCorrections().length);
+    // Check Todoist connection status
+    fetch("/api/todoist/status")
+      .then((r) => r.json())
+      .then((d) => setTodoistConnected(d.connected))
+      .catch(() => {});
+    // Handle callback query params
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("todoist_connected") === "true") {
+      setTodoistConnected(true);
+      window.history.replaceState({}, "", "/");
+    }
+    if (params.get("todoist_error")) {
+      setError(`Todoist連携エラー: ${params.get("todoist_error")}`);
+      window.history.replaceState({}, "", "/");
+    }
   }, []);
 
   const addFiles = useCallback((files) => {
@@ -267,12 +285,59 @@ export default function Home() {
     );
   };
 
+  const addToTodoist = async (si, ti) => {
+    const key = `${si}-${ti}`;
+    const task = resultSections[si]?.tasks?.[ti];
+    if (!task) return;
+    setTodoistAdding((p) => ({ ...p, [key]: true }));
+    try {
+      const body = { content: task.title };
+      if (task.description) body.description = task.description;
+      if (task.due_date) body.due_string = task.due_date;
+      if (task.priority) body.priority = task.priority;
+      const res = await fetch("/api/todoist/add-task", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        if (res.status === 401) {
+          setTodoistConnected(false);
+          setError("Todoist認証が切れました。再連携してください。");
+          return;
+        }
+        throw new Error("Failed");
+      }
+      setTodoistAdded((p) => ({ ...p, [key]: true }));
+    } catch {
+      setError("Todoistへの追加に失敗しました");
+    } finally {
+      setTodoistAdding((p) => ({ ...p, [key]: false }));
+    }
+  };
+
+  const addAllToTodoist = async () => {
+    setTodoistAdding((p) => ({ ...p, all: true }));
+    let success = 0;
+    for (let si = 0; si < resultSections.length; si++) {
+      for (let ti = 0; ti < resultSections[si].tasks.length; ti++) {
+        const key = `${si}-${ti}`;
+        if (todoistAdded[key]) continue;
+        await addToTodoist(si, ti);
+        success++;
+      }
+    }
+    setTodoistAdding((p) => ({ ...p, all: false }));
+  };
+
   const resetForNew = () => {
     setImages([]);
     setResultSections([]);
     setCopied({});
     setError(null);
     setPartnerName("");
+    setTodoistAdding({});
+    setTodoistAdded({});
   };
 
   const hasResults = resultSections.length > 0;
@@ -362,6 +427,41 @@ export default function Home() {
             </>
           )}
         </header>
+
+        {/* Todoist connection status */}
+        <div style={{
+          display: "flex", justifyContent: "center", marginBottom: 16,
+          animation: "fadeUp 0.7s ease 0.2s both",
+        }}>
+          {todoistConnected ? (
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "6px 14px", borderRadius: 20,
+              background: "rgba(76,175,80,0.08)",
+              border: "1px solid rgba(76,175,80,0.2)",
+              fontSize: 12, color: "#2e7d32", fontWeight: 500,
+            }}>
+              <TodoistIcon size={16} />
+              Todoist連携済み
+            </div>
+          ) : (
+            <a
+              href="/api/todoist/auth"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "8px 18px", borderRadius: 20,
+                background: "linear-gradient(135deg, #e44332 0%, #ff7043 100%)",
+                color: "#fff", textDecoration: "none",
+                fontSize: 12, fontWeight: 600,
+                boxShadow: "0 2px 12px rgba(228,67,50,0.25)",
+                transition: "all 0.2s ease",
+              }}
+            >
+              <TodoistIcon size={16} />
+              Todoistに連携する
+            </a>
+          )}
+        </div>
 
         {error && (
           <div className="glass" style={{
@@ -584,6 +684,38 @@ export default function Home() {
                 </span>
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {allTasks.length > 0 && todoistConnected && (
+                  <button
+                    onClick={addAllToTodoist}
+                    disabled={!!todoistAdding.all}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 5,
+                      padding: "6px 12px", borderRadius: 8,
+                      border: "1px solid rgba(228,67,50,0.2)",
+                      background: "rgba(228,67,50,0.06)",
+                      color: "#e44332",
+                      fontSize: 11, fontWeight: 600, cursor: todoistAdding.all ? "wait" : "pointer",
+                    }}
+                  >
+                    {todoistAdding.all ? (
+                      <>
+                        <span style={{
+                          display: "inline-block", width: 12, height: 12,
+                          border: "2px solid rgba(228,67,50,0.2)",
+                          borderTopColor: "#e44332",
+                          borderRadius: "50%",
+                          animation: "spin 0.7s linear infinite",
+                        }} />
+                        追加中...
+                      </>
+                    ) : (
+                      <>
+                        <TodoistIcon size={14} />
+                        すべてTodoistに追加
+                      </>
+                    )}
+                  </button>
+                )}
                 {allTasks.length > 0 && (
                   <button
                     onClick={copyAll}
@@ -824,6 +956,50 @@ export default function Home() {
                                     transition: "border-color 0.2s",
                                   }}
                                 />
+                              </div>
+                            )}
+
+                            {/* Todoist add button */}
+                            {todoistConnected && (
+                              <div style={{
+                                marginTop: 12, display: "flex", justifyContent: "flex-end",
+                              }}>
+                                <button
+                                  onClick={() => addToTodoist(si, ti)}
+                                  disabled={!!todoistAdding[`${si}-${ti}`] || !!todoistAdded[`${si}-${ti}`]}
+                                  style={{
+                                    display: "inline-flex", alignItems: "center", gap: 6,
+                                    padding: "7px 16px", borderRadius: 10,
+                                    border: "none",
+                                    background: todoistAdded[`${si}-${ti}`]
+                                      ? "linear-gradient(135deg, #43a047, #66bb6a)"
+                                      : "linear-gradient(135deg, #e44332, #ff7043)",
+                                    color: "#fff",
+                                    fontSize: 12, fontWeight: 600,
+                                    cursor: todoistAdded[`${si}-${ti}`] ? "default" : todoistAdding[`${si}-${ti}`] ? "wait" : "pointer",
+                                    boxShadow: todoistAdded[`${si}-${ti}`]
+                                      ? "0 2px 10px rgba(67,160,71,0.3)"
+                                      : "0 2px 10px rgba(228,67,50,0.3)",
+                                    transition: "all 0.3s ease",
+                                  }}
+                                >
+                                  {todoistAdded[`${si}-${ti}`] ? (
+                                    <><span style={{ animation: "check-pop 0.3s ease" }}>✓</span> 追加済み</>
+                                  ) : todoistAdding[`${si}-${ti}`] ? (
+                                    <>
+                                      <span style={{
+                                        display: "inline-block", width: 12, height: 12,
+                                        border: "2px solid rgba(255,255,255,0.3)",
+                                        borderTopColor: "#fff",
+                                        borderRadius: "50%",
+                                        animation: "spin 0.7s linear infinite",
+                                      }} />
+                                      追加中...
+                                    </>
+                                  ) : (
+                                    <><TodoistIcon size={14} /> Todoistに追加</>
+                                  )}
+                                </button>
                               </div>
                             )}
 
