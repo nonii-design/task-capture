@@ -7,7 +7,7 @@ async function findProjectId(
   projectName: string
 ): Promise<string | null> {
   try {
-    const res = await fetch("https://api.todoist.com/api/v1/projects", {
+    const res = await fetch("https://api.todoist.com/rest/v2/projects", {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) return null;
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const res = await fetch("https://api.todoist.com/api/v1/tasks", {
+    const res = await fetch("https://api.todoist.com/rest/v2/tasks", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,

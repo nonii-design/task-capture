@@ -12,7 +12,7 @@ export async function GET() {
   }
 
   try {
-    const res = await fetch("https://api.todoist.com/api/v1/projects", {
+    const res = await fetch("https://api.todoist.com/rest/v2/projects", {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {

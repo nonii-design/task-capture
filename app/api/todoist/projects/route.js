@@ -8,7 +8,7 @@ export async function GET(req) {
 
   try {
     console.log("Token received:", token ? token.slice(0, 6) + "..." : "NONE");
-    const res = await fetch("https://api.todoist.com/api/v1/projects", {
+    const res = await fetch("https://api.todoist.com/rest/v2/projects", {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) {

@@ -8,7 +8,7 @@ export async function POST(req) {
 
   try {
     const body = await req.json();
-    const res = await fetch("https://api.todoist.com/api/v1/tasks", {
+    const res = await fetch("https://api.todoist.com/rest/v2/tasks", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
