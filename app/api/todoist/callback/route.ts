@@ -46,20 +46,25 @@ export async function GET(request: NextRequest) {
 
   const { access_token } = await tokenRes.json();
 
-  // Fetch user email from Todoist Sync API
+  // Fetch user email from Todoist Sync API (uses form-urlencoded, not JSON)
   let userEmail = "";
   try {
+    const params = new URLSearchParams();
+    params.append("sync_token", "*");
+    params.append("resource_types", '["user"]');
     const userRes = await fetch("https://api.todoist.com/sync/v9/sync", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${access_token}`,
-        "Content-Type": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: JSON.stringify({ sync_token: "*", resource_types: ["user"] }),
+      body: params.toString(),
     });
     if (userRes.ok) {
       const userData = await userRes.json();
       userEmail = userData.user?.email || "";
+    } else {
+      console.error("Sync API error:", userRes.status, await userRes.text());
     }
   } catch (e) {
     console.error("Failed to fetch user email:", e);
