@@ -37,6 +37,18 @@ const priorityConfig = {
   4: { label: "緊急", color: "#ef4444", bg: "rgba(239,68,68,0.10)" },
 };
 
+function dueDateToInput(d) {
+  if (!d) return "";
+  const today = new Date();
+  if (d === "today") return today.toISOString().split("T")[0];
+  if (d === "tomorrow") {
+    today.setDate(today.getDate() + 1);
+    return today.toISOString().split("T")[0];
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+  return "";
+}
+
 function CopyButton({ text, label, copiedKey, copiedState, onCopy }) {
   const isCopied = copiedState[copiedKey];
   return (
@@ -1026,16 +1038,48 @@ export default function Home() {
                               }}>
                                 優先度: {pc.label}
                               </span>
-                              {task.due_date && (
-                                <span style={{
-                                  display: "inline-flex", alignItems: "center", gap: 4,
-                                  padding: "3px 9px", borderRadius: 7,
-                                  fontSize: 11, fontWeight: 600,
-                                  color: "#3b82f6", background: "rgba(59,130,246,0.08)",
-                                }}>
-                                  📅 着手日: {task.due_date}
-                                </span>
-                              )}
+                              <span style={{
+                                display: "inline-flex", alignItems: "center", gap: 4,
+                                padding: "3px 6px 3px 9px", borderRadius: 7,
+                                fontSize: 11, fontWeight: 600,
+                                color: "#3b82f6", background: "rgba(59,130,246,0.08)",
+                                border: "1px solid rgba(59,130,246,0.15)",
+                              }}>
+                                📅 着手日:
+                                <input
+                                  type="date"
+                                  value={dueDateToInput(task.due_date)}
+                                  onChange={(e) =>
+                                    updateTask(si, ti, "due_date", e.target.value || null)
+                                  }
+                                  style={{
+                                    border: "none",
+                                    background: "transparent",
+                                    color: "#3b82f6",
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    fontFamily: "inherit",
+                                    padding: "1px 2px",
+                                    cursor: "pointer",
+                                    outline: "none",
+                                    minWidth: task.due_date ? "auto" : 110,
+                                  }}
+                                />
+                                {task.due_date && (
+                                  <button
+                                    onClick={() => updateTask(si, ti, "due_date", null)}
+                                    title="着手日をクリア"
+                                    style={{
+                                      border: "none", background: "transparent",
+                                      color: "#94a3b8", cursor: "pointer",
+                                      fontSize: 13, lineHeight: 1, padding: "0 2px",
+                                      fontFamily: "inherit",
+                                    }}
+                                  >
+                                    ×
+                                  </button>
+                                )}
+                              </span>
                             </div>
 
                             {/* Description */}
