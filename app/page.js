@@ -112,7 +112,6 @@ export default function Home() {
   const [todoistProjectName, setTodoistProjectName] = useState(null);
   const [todoistAdding, setTodoistAdding] = useState({});
   const [todoistAdded, setTodoistAdded] = useState({});
-  const [todoistMenuOpen, setTodoistMenuOpen] = useState(false);
   const [todoistLoggingOut, setTodoistLoggingOut] = useState(false);
   const fileRef = useRef();
 
@@ -356,7 +355,6 @@ export default function Home() {
       setTodoistEmail(null);
       setTodoistProjectName(null);
       setTodoistAdded({});
-      setTodoistMenuOpen(false);
     } catch {
       setError("ログアウトに失敗しました");
     } finally {
@@ -483,94 +481,47 @@ export default function Home() {
         }}>
           {todoistConnected ? (
             <div style={{
-              position: "relative",
               display: "inline-flex", flexDirection: "column", alignItems: "flex-end",
-              gap: 4,
+              gap: 6,
             }}>
-              <button
-                onClick={() => setTodoistMenuOpen((v) => !v)}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  padding: "6px 14px", borderRadius: 20,
-                  background: "rgba(76,175,80,0.08)",
-                  border: "1px solid rgba(76,175,80,0.2)",
-                  fontSize: 12, color: "#2e7d32", fontWeight: 500,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  backdropFilter: "blur(8px)",
-                }}
-              >
+              <div style={{
+                display: "inline-flex", alignItems: "center", gap: 8,
+                padding: "6px 6px 6px 12px", borderRadius: 20,
+                background: "rgba(76,175,80,0.08)",
+                border: "1px solid rgba(76,175,80,0.2)",
+                backdropFilter: "blur(8px)",
+              }}>
                 <TodoistIcon size={16} />
-                Todoist連携済み
                 <span style={{
-                  fontSize: 9, marginLeft: 2,
-                  transform: todoistMenuOpen ? "rotate(180deg)" : "rotate(0deg)",
-                  transition: "transform 0.2s",
-                }}>▼</span>
-              </button>
+                  fontSize: 12, color: "#2e7d32", fontWeight: 500,
+                  maxWidth: 220, overflow: "hidden",
+                  textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}>
+                  {todoistEmail || "連携済み"}
+                </span>
+                <button
+                  onClick={logoutTodoist}
+                  disabled={todoistLoggingOut}
+                  title="連携を解除"
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 4,
+                    padding: "4px 10px", borderRadius: 14,
+                    border: "1px solid rgba(228,67,50,0.25)",
+                    background: "rgba(228,67,50,0.06)",
+                    color: "#e44332",
+                    fontSize: 11, fontWeight: 600,
+                    cursor: todoistLoggingOut ? "wait" : "pointer",
+                    fontFamily: "inherit",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {todoistLoggingOut ? "..." : "🔓 ログアウト"}
+                </button>
+              </div>
               {todoistProjectName && (
                 <span style={{ fontSize: 10, color: "#888", textAlign: "right" }}>
                   📂 {todoistProjectName}
                 </span>
-              )}
-              {todoistMenuOpen && (
-                <>
-                  <div
-                    onClick={() => setTodoistMenuOpen(false)}
-                    style={{
-                      position: "fixed", inset: 0, zIndex: 99,
-                    }}
-                  />
-                  <div style={{
-                    position: "absolute", top: "calc(100% + 8px)",
-                    right: 0,
-                    minWidth: 240, zIndex: 100,
-                    background: "#fff",
-                    borderRadius: 12,
-                    boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                    border: "1px solid rgba(0,0,0,0.06)",
-                    padding: 12,
-                    animation: "scaleIn 0.15s ease both",
-                  }}>
-                    <div style={{
-                      fontSize: 10, color: "#888", fontWeight: 600,
-                      textTransform: "uppercase", letterSpacing: "0.06em",
-                      marginBottom: 8,
-                    }}>
-                      連携アカウント
-                    </div>
-                    {todoistEmail && (
-                      <div style={{
-                        fontSize: 12, color: "#333", marginBottom: 4,
-                        wordBreak: "break-all",
-                      }}>
-                        {todoistEmail}
-                      </div>
-                    )}
-                    {todoistProjectName && (
-                      <div style={{ fontSize: 11, color: "#666", marginBottom: 12 }}>
-                        📂 {todoistProjectName}
-                      </div>
-                    )}
-                    <button
-                      onClick={logoutTodoist}
-                      disabled={todoistLoggingOut}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px", borderRadius: 8,
-                        border: "1px solid rgba(228,67,50,0.2)",
-                        background: "rgba(228,67,50,0.04)",
-                        color: "#e44332",
-                        fontSize: 12, fontWeight: 600,
-                        cursor: todoistLoggingOut ? "wait" : "pointer",
-                        fontFamily: "inherit",
-                        transition: "all 0.2s",
-                      }}
-                    >
-                      {todoistLoggingOut ? "解除中..." : "🔓 連携を解除"}
-                    </button>
-                  </div>
-                </>
               )}
             </div>
           ) : (
