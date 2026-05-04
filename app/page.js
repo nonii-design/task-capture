@@ -472,15 +472,15 @@ export default function Home() {
           )}
         </header>
 
-        {/* Todoist connection status */}
+        {/* Todoist connection status (top-right) */}
         <div style={{
-          display: "flex", justifyContent: "center", marginBottom: 16,
+          position: "absolute", top: 20, right: 20, zIndex: 50,
           animation: "fadeUp 0.7s ease 0.2s both",
         }}>
           {todoistConnected ? (
             <div style={{
               position: "relative",
-              display: "inline-flex", flexDirection: "column", alignItems: "center",
+              display: "inline-flex", flexDirection: "column", alignItems: "flex-end",
               gap: 4,
             }}>
               <button
@@ -493,6 +493,7 @@ export default function Home() {
                   fontSize: 12, color: "#2e7d32", fontWeight: 500,
                   cursor: "pointer",
                   fontFamily: "inherit",
+                  backdropFilter: "blur(8px)",
                 }}
               >
                 <TodoistIcon size={16} />
@@ -504,9 +505,8 @@ export default function Home() {
                 }}>▼</span>
               </button>
               {todoistProjectName && (
-                <span style={{ fontSize: 10, color: "#888" }}>
+                <span style={{ fontSize: 10, color: "#888", textAlign: "right" }}>
                   📂 {todoistProjectName}
-                  {todoistEmail && <span style={{ color: "#bbb" }}> ({todoistEmail})</span>}
                 </span>
               )}
               {todoistMenuOpen && (
@@ -519,7 +519,7 @@ export default function Home() {
                   />
                   <div style={{
                     position: "absolute", top: "calc(100% + 8px)",
-                    left: "50%", transform: "translateX(-50%)",
+                    right: 0,
                     minWidth: 240, zIndex: 100,
                     background: "#fff",
                     borderRadius: 12,
