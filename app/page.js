@@ -141,8 +141,12 @@ export default function Home() {
         .catch(() => {});
       window.history.replaceState({}, "", "/");
     }
-    if (params.get("todoist_error")) {
-      setError(`Todoist連携エラー: ${params.get("todoist_error")}`);
+    const errCode = params.get("todoist_error");
+    if (errCode) {
+      const detail = params.get("detail");
+      const msg = `Todoist連携エラー: ${errCode}${detail ? ` (${detail})` : ""}`;
+      setError(msg);
+      console.error("[Todoist OAuth]", { errCode, detail });
       window.history.replaceState({}, "", "/");
     }
   }, []);

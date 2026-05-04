@@ -22,6 +22,10 @@ export async function GET() {
   });
 
   const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/todoist/callback`;
+  console.log("[Todoist auth] starting OAuth", {
+    redirectUri,
+    statePrefix: state.slice(0, 8),
+  });
   const params = new URLSearchParams({
     client_id: clientId,
     scope: "task:add,data:read",

@@ -1,29 +1,45 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
+function errorRedirect(code: string, detail?: string) {
+  const base = process.env.NEXT_PUBLIC_APP_URL;
+  const params = new URLSearchParams({ todoist_error: code });
+  if (detail) params.set("detail", detail.slice(0, 200));
+  return NextResponse.redirect(`${base}/?${params.toString()}`);
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const error = searchParams.get("error");
+  const errorDescription = searchParams.get("error_description");
+
+  console.log("[Todoist callback]", {
+    hasCode: !!code,
+    hasState: !!state,
+    error,
+    errorDescription,
+  });
 
   if (error) {
-    return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/?todoist_error=${error}`
-    );
+    return errorRedirect(error, errorDescription || undefined);
   }
 
   if (!code || !state) {
-    return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/?todoist_error=missing_params`
-    );
+    return errorRedirect("missing_params", `code=${!!code}&state=${!!state}`);
   }
 
   const cookieStore = await cookies();
   const savedState = cookieStore.get("todoist_oauth_state")?.value;
   if (state !== savedState) {
-    return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/?todoist_error=invalid_state`
+    console.error("[Todoist callback] state mismatch", {
+      received: state.slice(0, 8),
+      saved: savedState?.slice(0, 8) || "(none)",
+    });
+    return errorRedirect(
+      "invalid_state",
+      savedState ? "state_mismatch" : "no_saved_state_cookie"
     );
   }
 
@@ -38,10 +54,9 @@ export async function GET(request: NextRequest) {
   });
 
   if (!tokenRes.ok) {
-    console.error("Token exchange failed:", tokenRes.status, await tokenRes.text());
-    return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/?todoist_error=token_exchange_failed`
-    );
+    const text = await tokenRes.text();
+    console.error("Token exchange failed:", tokenRes.status, text);
+    return errorRedirect("token_exchange_failed", `${tokenRes.status}:${text.slice(0, 100)}`);
   }
 
   const { access_token } = await tokenRes.json();
