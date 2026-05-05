@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
-import { cookies } from "next/headers";
 
 export async function GET() {
   const clientId = process.env.TODOIST_CLIENT_ID;
@@ -12,15 +11,6 @@ export async function GET() {
   }
 
   const state = randomBytes(32).toString("hex");
-  const cookieStore = await cookies();
-  cookieStore.set("todoist_oauth_state", state, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    maxAge: 600, // 10 minutes
-    path: "/",
-  });
-
   const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/todoist/callback`;
   console.log("[Todoist auth] starting OAuth", {
     redirectUri,
@@ -33,7 +23,18 @@ export async function GET() {
     redirect_uri: redirectUri,
   });
 
-  return NextResponse.redirect(
+  // Set the cookie on the actual redirect response. Calling cookies().set()
+  // before returning a freshly-created NextResponse loses the Set-Cookie
+  // header, which was causing invalid_state errors on the callback.
+  const response = NextResponse.redirect(
     `https://todoist.com/oauth/authorize?${params.toString()}`
   );
+  response.cookies.set("todoist_oauth_state", state, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    maxAge: 600,
+    path: "/",
+  });
+  return response;
 }
