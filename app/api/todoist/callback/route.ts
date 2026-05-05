@@ -43,14 +43,15 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const tokenParams = new URLSearchParams();
+  tokenParams.set("client_id", process.env.TODOIST_CLIENT_ID || "");
+  tokenParams.set("client_secret", process.env.TODOIST_CLIENT_SECRET || "");
+  tokenParams.set("code", code);
+
   const tokenRes = await fetch("https://todoist.com/oauth/access_token", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_id: process.env.TODOIST_CLIENT_ID,
-      client_secret: process.env.TODOIST_CLIENT_SECRET,
-      code,
-    }),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: tokenParams.toString(),
   });
 
   if (!tokenRes.ok) {
